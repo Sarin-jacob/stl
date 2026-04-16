@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STL Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        .canvas-container {
+            width: 100%;
+            height: 60vh;
+            outline: none;
+        }
+        canvas {
+            display: block;
+            outline: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans h-screen flex flex-col">
+
+    <div class="max-w-6xl mx-auto w-full p-4 flex-grow flex flex-col">
+        <h1 class="text-2xl font-bold mb-4 text-gray-900">Multi-Tab STL Viewer</h1>
+
+        <div class="flex border-b border-gray-300 mb-4">
+            <button onclick="switchTab('tab1')" id="btn-tab1" class="py-2 px-4 border-b-2 border-blue-600 font-medium text-blue-600 transition-colors">Workspace 1</button>
+            <button onclick="switchTab('tab2')" id="btn-tab2" class="py-2 px-4 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 transition-colors">Workspace 2</button>
+        </div>
+
+        <div id="tab1" class="tab-content flex-grow flex flex-col">
+            <div class="flex justify-between items-center mb-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+                <input type="file" id="upload-1" multiple accept=".stl" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
+                <div id="info-1" class="whitespace-nowrap ml-4 font-mono text-sm font-semibold bg-gray-100 px-3 py-1 rounded">
+                    Selected Area: -- mm²
+                </div>
+            </div>
+            <div id="canvas-1" class="canvas-container bg-white rounded-lg shadow-inner border border-gray-300 overflow-hidden relative"></div>
+        </div>
+
+        <div id="tab2" class="tab-content hidden flex-grow flex-col">
+            <div class="flex justify-between items-center mb-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+                <input type="file" id="upload-2" multiple accept=".stl" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
+                <div id="info-2" class="whitespace-nowrap ml-4 font-mono text-sm font-semibold bg-gray-100 px-3 py-1 rounded">
+                    Selected Area: -- mm²
+                </div>
+            </div>
+            <div id="canvas-2" class="canvas-container bg-white rounded-lg shadow-inner border border-gray-300 overflow-hidden relative"></div>
+        </div>
+    </div>
+
+    <script>
+        // UI Logic for Tabs
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+                tab.classList.remove('flex');
+            });
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById(tabId).classList.add('flex');
+
+            document.getElementById('btn-tab1').classList.replace(tabId === 'tab1' ? 'border-transparent' : 'border-blue-600', tabId === 'tab1' ? 'border-blue-600' : 'border-transparent');
+            document.getElementById('btn-tab1').classList.replace(tabId === 'tab1' ? 'text-gray-500' : 'text-blue-600', tabId === 'tab1' ? 'text-blue-600' : 'text-gray-500');
+            
+            document.getElementById('btn-tab2').classList.replace(tabId === 'tab2' ? 'border-transparent' : 'border-blue-600', tabId === 'tab2' ? 'border-blue-600' : 'border-transparent');
+            document.getElementById('btn-tab2').classList.replace(tabId === 'tab2' ? 'text-gray-500' : 'text-blue-600', tabId === 'tab2' ? 'text-blue-600' : 'text-gray-500');
+
+            // Dispatch resize event to fix canvas aspect ratio when un-hidden
+            window.dispatchEvent(new Event('resize'));
+        }
+
+        // ThreeJS Viewer Class
+        class STLViewer {
+            constructor(containerId, inputId, infoId) {
+                this.container = document.getElementById(containerId);
+                this.infoElement = document.getElementById(infoId);
+                
+                // Scene setup
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0xf9fafb); // Tailwind gray-50
+                
+                // Camera setup
+                this.camera = new THREE.PerspectiveCamera(60, this.container.clientWidth / this.container.clientHeight, 0.1, 10000);
+                this.camera.position.set(0, -150, 100);
+
+                // Renderer setup
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.container.appendChild(this.renderer.domElement);
+
+                // Controls: Zoom and Rotate only, No Panning
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enablePan = false; 
+                this.controls.enableZoom = true;
+                this.controls.enableRotate = true;
+
+                // Lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                this.scene.add(ambientLight);
+                
+                const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+                dirLight1.position.set(1, 1, 1);
+                this.scene.add(dirLight1);
+                
+                const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+                dirLight2.position.set(-1, -1, -1);
+                this.scene.add(dirLight2);
+
+                // Raycaster for selecting meshes
+                this.raycaster = new THREE.Raycaster();
+                this.mouse = new THREE.Vector2();
+
+                // Materials
+                this.defaultMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x9ca3af, // gray-400
+                    roughness: 0.4,
+                    metalness: 0.1,
+                    side: THREE.DoubleSide
+                });
+                
+                this.selectedMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x10b981, // emerald-500 highlight
+                    roughness: 0.3,
+                    metalness: 0.2,
+                    side: THREE.DoubleSide,
+                    emissive: 0x059669,
+                    emissiveIntensity: 0.2
+                });
+
+                this.meshes = [];
+                this.selectedMesh = null;
+
+                // Event Listeners
+                document.getElementById(inputId).addEventListener('change', this.handleFiles.bind(this));
+                this.renderer.domElement.addEventListener('click', this.onClick.bind(this));
+                window.addEventListener('resize', this.onResize.bind(this));
+
+                this.animate();
+            }
+
+            handleFiles(event) {
+                const files = event.target.files;
+                if (!files || files.length === 0) return;
+
+                const loader = new THREE.STLLoader();
+
+                Array.from(files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const geometry = loader.parse(e.target.result);
+                        geometry.computeVertexNormals();
+                        geometry.center(); // Center the geometry
+
+                        const mesh = new THREE.Mesh(geometry, this.defaultMaterial.clone());
+                        
+                        this.scene.add(mesh);
+                        this.meshes.push(mesh);
+                        
+                        // Auto adjust camera to fit the new mesh roughly
+                        geometry.computeBoundingSphere();
+                        const radius = geometry.boundingSphere.radius;
+                        this.camera.position.set(0, -radius * 2.5, radius * 1.5);
+                        this.controls.target.set(0, 0, 0);
+                        this.controls.update();
+                    };
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+
+            calculateSurfaceArea(geometry) {
+                let area = 0;
+                const positions = geometry.attributes.position.array;
+                const vA = new THREE.Vector3();
+                const vB = new THREE.Vector3();
+                const vC = new THREE.Vector3();
+                const ab = new THREE.Vector3();
+                const ac = new THREE.Vector3();
+
+                // STLLoader returns non-indexed buffer geometries
+                if (geometry.index) {
+                    const indices = geometry.index.array;
+                    for (let i = 0; i < indices.length; i += 3) {
+                        vA.fromArray(positions, indices[i] * 3);
+                        vB.fromArray(positions, indices[i + 1] * 3);
+                        vC.fromArray(positions, indices[i + 2] * 3);
+                        ab.subVectors(vB, vA);
+                        ac.subVectors(vC, vA);
+                        area += ab.cross(ac).length() / 2.0;
+                    }
+                } else {
+                    for (let i = 0; i < positions.length; i += 9) {
+                        vA.fromArray(positions, i);
+                        vB.fromArray(positions, i + 3);
+                        vC.fromArray(positions, i + 6);
+                        ab.subVectors(vB, vA);
+                        ac.subVectors(vC, vA);
+                        area += ab.cross(ac).length() / 2.0;
+                    }
+                }
+                return area;
+            }
+
+            onClick(event) {
+                const rect = this.renderer.domElement.getBoundingClientRect();
+                this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const intersects = this.raycaster.intersectObjects(this.meshes);
+
+                if (intersects.length > 0) {
+                    // Reset previously selected
+                    if (this.selectedMesh) {
+                        this.selectedMesh.material = this.defaultMaterial;
+                    }
+
+                    // Highlight new selection
+                    this.selectedMesh = intersects[0].object;
+                    this.selectedMesh.material = this.selectedMaterial;
+
+                    // Calculate and display surface area
+                    const area = this.calculateSurfaceArea(this.selectedMesh.geometry);
+                    this.infoElement.textContent = `Selected Area: ${area.toFixed(2)} units²`;
+                } else {
+                    // Clicked empty space, deselect
+                    if (this.selectedMesh) {
+                        this.selectedMesh.material = this.defaultMaterial;
+                        this.selectedMesh = null;
+                        this.infoElement.textContent = `Selected Area: -- units²`;
+                    }
+                }
+            }
+
+            onResize() {
+                if (this.container.clientWidth === 0) return; // Ignore if hidden
+                this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(this.animate.bind(this));
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // Initialize viewers for both tabs
+        window.onload = () => {
+            const viewer1 = new STLViewer('canvas-1', 'upload-1', 'info-1');
+            const viewer2 = new STLViewer('canvas-2', 'upload-2', 'info-2');
+        };
+    </script>
+</body>
+</html>
