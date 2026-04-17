@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Tab STL Viewer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -13,52 +12,92 @@
     <style>
         .canvas-container {
             width: 100%;
-            height: 65vh;
+            height: 100%;
+            min-height: 50vh;
             outline: none;
         }
         canvas {
             display: block;
             outline: none;
         }
+        /* Custom scrollbar for a cleaner tech UI */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans h-screen flex flex-col">
+<body class="bg-gray-50 text-gray-800 font-sans h-screen flex flex-col overflow-hidden">
 
-    <div class="max-w-7xl mx-auto w-full p-4 flex-grow flex flex-col">
-        <h1 class="text-2xl font-bold mb-4 text-gray-900">Medical STL Viewer</h1>
+    <div class="max-w-[1600px] mx-auto w-full p-4 flex-grow flex flex-col h-full">
+        <h1 class="text-2xl font-bold mb-4 text-gray-900 flex-shrink-0">Medical STL Viewer</h1>
 
-        <div class="flex border-b border-gray-300 mb-4">
+        <div class="flex border-b border-gray-300 mb-4 md:hidden flex-shrink-0">
             <button onclick="switchTab('tab1')" id="btn-tab1" class="py-2 px-4 border-b-2 border-blue-600 font-medium text-blue-600 transition-colors">Workspace 1</button>
             <button onclick="switchTab('tab2')" id="btn-tab2" class="py-2 px-4 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700 transition-colors">Workspace 2</button>
         </div>
 
-        <div id="tab1" class="tab-content flex-grow flex flex-col">
-            <div class="flex justify-between items-center mb-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
-                <input type="file" id="upload-1" multiple accept=".stl" class="block w-1/3 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
-                <div id="info-1" class="whitespace-nowrap ml-4 font-mono text-sm font-semibold bg-gray-100 px-4 py-2 rounded text-gray-700 border border-gray-300 flex space-x-6">
-                    <span>Area: <span id="area-1">--</span> mm²</span>
-                    <span>Volume: <span id="vol-1">--</span> mm³</span>
+        <div class="flex flex-col md:flex-row flex-grow gap-4 overflow-hidden">
+            
+            <div id="tab1" class="workspace-tab flex flex-col w-full md:w-1/2 h-full">
+                <div class="flex justify-between items-center mb-2 p-3 bg-white rounded-lg shadow-sm border border-gray-200 flex-shrink-0">
+                    <input type="file" id="upload-1" multiple accept=".stl" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
                 </div>
-            </div>
-            <div id="canvas-1" class="canvas-container bg-white rounded-lg shadow-inner border border-gray-300 overflow-hidden relative"></div>
-        </div>
+                
+                <div class="relative flex-grow bg-white rounded-lg shadow-inner border border-gray-300 overflow-hidden group">
+                    <div id="tooltip-1" class="absolute pointer-events-none hidden z-50 bg-gray-900/90 backdrop-blur text-white text-xs p-3 rounded shadow-lg border border-gray-700 transform -translate-x-1/2 -translate-y-[120%] whitespace-nowrap">
+                        <div class="font-bold border-b border-gray-600 mb-1 pb-1">Selection Metrics</div>
+                        <div>Area: <span id="area-1" class="font-mono text-emerald-400">--</span> mm²</div>
+                        <div>Vol: <span id="vol-1" class="font-mono text-emerald-400">--</span> mm³</div>
+                        <div>Dim: <span id="dim-1" class="font-mono text-emerald-400">--</span> mm</div>
+                    </div>
 
-        <div id="tab2" class="tab-content hidden flex-grow flex-col">
-            <div class="flex justify-between items-center mb-4 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
-                <input type="file" id="upload-2" multiple accept=".stl" class="block w-1/3 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
-                <div id="info-2" class="whitespace-nowrap ml-4 font-mono text-sm font-semibold bg-gray-100 px-4 py-2 rounded text-gray-700 border border-gray-300 flex space-x-6">
-                    <span>Area: <span id="area-2">--</span> mm²</span>
-                    <span>Volume: <span id="vol-2">--</span> mm³</span>
+                    <div class="absolute top-4 right-4 z-40 bg-white/90 backdrop-blur p-2 rounded-lg shadow border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <input type="range" id="opacity-1" min="0.1" max="1" step="0.1" value="1" class="w-24 accent-blue-600" title="Selected Opacity">
+                        </div>
+                        <button id="delete-1" class="text-xs bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 px-2 py-1 rounded w-full font-medium transition-colors">Remove Selected</button>
+                    </div>
+
+                    <div id="canvas-1" class="canvas-container"></div>
                 </div>
             </div>
-            <div id="canvas-2" class="canvas-container bg-white rounded-lg shadow-inner border border-gray-300 overflow-hidden relative"></div>
+
+            <div id="tab2" class="workspace-tab hidden md:flex flex-col w-full md:w-1/2 h-full">
+                <div class="flex justify-between items-center mb-2 p-3 bg-white rounded-lg shadow-sm border border-gray-200 flex-shrink-0">
+                    <input type="file" id="upload-2" multiple accept=".stl" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
+                </div>
+                
+                <div class="relative flex-grow bg-white rounded-lg shadow-inner border border-gray-300 overflow-hidden group">
+                    <div id="tooltip-2" class="absolute pointer-events-none hidden z-50 bg-gray-900/90 backdrop-blur text-white text-xs p-3 rounded shadow-lg border border-gray-700 transform -translate-x-1/2 -translate-y-[120%] whitespace-nowrap">
+                        <div class="font-bold border-b border-gray-600 mb-1 pb-1">Selection Metrics</div>
+                        <div>Area: <span id="area-2" class="font-mono text-emerald-400">--</span> mm²</div>
+                        <div>Vol: <span id="vol-2" class="font-mono text-emerald-400">--</span> mm³</div>
+                        <div>Dim: <span id="dim-2" class="font-mono text-emerald-400">--</span> mm</div>
+                    </div>
+
+                    <div class="absolute top-4 right-4 z-40 bg-white/90 backdrop-blur p-2 rounded-lg shadow border border-gray-200 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col gap-2">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <input type="range" id="opacity-2" min="0.1" max="1" step="0.1" value="1" class="w-24 accent-blue-600" title="Selected Opacity">
+                        </div>
+                        <button id="delete-2" class="text-xs bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 px-2 py-1 rounded w-full font-medium transition-colors">Remove Selected</button>
+                    </div>
+
+                    <div id="canvas-2" class="canvas-container"></div>
+                </div>
+            </div>
+
         </div>
     </div>
 
     <script>
-        // UI Logic for Tabs
+        // UI Logic for Mobile Tabs
         function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(tab => {
+            if (window.innerWidth >= 768) return; // Prevent logic on md+ screens
+            
+            document.querySelectorAll('.workspace-tab').forEach(tab => {
                 tab.classList.add('hidden');
                 tab.classList.remove('flex');
             });
@@ -71,87 +110,84 @@
             document.getElementById('btn-tab2').classList.replace(tabId === 'tab2' ? 'border-transparent' : 'border-blue-600', tabId === 'tab2' ? 'border-blue-600' : 'border-transparent');
             document.getElementById('btn-tab2').classList.replace(tabId === 'tab2' ? 'text-gray-500' : 'text-blue-600', tabId === 'tab2' ? 'text-blue-600' : 'text-gray-500');
 
-            // Dispatch resize event to fix canvas aspect ratio when un-hidden
             window.dispatchEvent(new Event('resize'));
         }
 
-        // Distinct colors for different STLs uploaded in the same window
+        // Handle resize bridging for tabs
+        window.addEventListener('resize', () => {
+            if(window.innerWidth >= 768) {
+                document.querySelectorAll('.workspace-tab').forEach(tab => {
+                    tab.classList.remove('hidden');
+                    tab.classList.add('flex');
+                });
+            } else {
+                // Keep current active state on shrink
+                const activeTab = document.getElementById('btn-tab1').classList.contains('text-blue-600') ? 'tab1' : 'tab2';
+                switchTab(activeTab);
+            }
+        });
+
         const colorPalette = [
-            0x3b82f6, // blue
-            0xef4444, // red
-            0xeab308, // yellow
-            0xa855f7, // purple
-            0xf97316, // orange
-            0x06b6d4, // cyan
-            0xec4899, // pink
-            0x84cc16  // lime
+            0x3b82f6, 0xef4444, 0xeab308, 0xa855f7, 
+            0xf97316, 0x06b6d4, 0xec4899, 0x84cc16 
         ];
 
-        // ThreeJS Viewer Class
         class STLViewer {
-            constructor(containerId, inputId, areaId, volId) {
-                this.container = document.getElementById(containerId);
-                this.areaElement = document.getElementById(areaId);
-                this.volElement = document.getElementById(volId);
+            constructor(config) {
+                this.config = config;
+                this.container = document.getElementById(config.containerId);
+                this.tooltip = document.getElementById(config.tooltipId);
                 
-                // Scene setup
                 this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0xf9fafb); 
+                this.scene.background = new THREE.Color(0xf1f5f9); 
                 
-                // Camera setup
                 this.camera = new THREE.PerspectiveCamera(60, this.container.clientWidth / this.container.clientHeight, 0.1, 10000);
                 this.camera.position.set(0, -150, 100);
 
-                // Renderer setup
                 this.renderer = new THREE.WebGLRenderer({ antialias: true });
                 this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
                 this.renderer.setPixelRatio(window.devicePixelRatio);
                 this.container.appendChild(this.renderer.domElement);
 
-                // Controls: Zoom and Rotate only, No Panning
                 this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
                 this.controls.enablePan = false; 
                 this.controls.enableZoom = true;
                 this.controls.enableRotate = true;
 
-                // Lighting
                 const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
                 this.scene.add(ambientLight);
-                
                 const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
                 dirLight1.position.set(1, 1, 1);
                 this.scene.add(dirLight1);
-                
                 const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.6);
                 dirLight2.position.set(-1, -1, -1);
                 this.scene.add(dirLight2);
 
-                // Raycaster for selecting meshes
                 this.raycaster = new THREE.Raycaster();
                 this.mouse = new THREE.Vector2();
 
-                // Highlight Material
-                this.selectedMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0x10b981, // emerald-500 highlight
-                    roughness: 0.3,
-                    metalness: 0.2,
-                    side: THREE.DoubleSide,
-                    emissive: 0x059669,
-                    emissiveIntensity: 0.4
-                });
-
+                // State
                 this.meshes = [];
-                this.selectedMesh = null;
+                this.selectedMeshes = new Set();
                 this.colorIndex = 0;
+                this.pointerDownPos = { x: 0, y: 0 };
 
-                // Create a group to hold all STLs for bounding box calculations
                 this.meshGroup = new THREE.Group();
                 this.scene.add(this.meshGroup);
 
                 // Event Listeners
-                document.getElementById(inputId).addEventListener('change', this.handleFiles.bind(this));
-                this.renderer.domElement.addEventListener('click', this.onClick.bind(this));
+                document.getElementById(config.inputId).addEventListener('change', this.handleFiles.bind(this));
+                document.getElementById(config.deleteId).addEventListener('click', this.deleteSelected.bind(this));
+                document.getElementById(config.opacityId).addEventListener('input', this.updateOpacity.bind(this));
+                
                 window.addEventListener('resize', this.onResize.bind(this));
+                
+                // Pointer events for accurate touch/mouse handling without interrupting orbit
+                const dom = this.renderer.domElement;
+                dom.addEventListener('pointerdown', (e) => {
+                    this.pointerDownPos = { x: e.clientX, y: e.clientY };
+                });
+                dom.addEventListener('pointerup', this.onPointerUp.bind(this));
 
                 this.animate();
             }
@@ -167,33 +203,38 @@
                     reader.onload = (e) => {
                         const geometry = loader.parse(e.target.result);
                         geometry.computeVertexNormals();
-                        
-                        // We do NOT call geometry.center() here to preserve original coordinates
+                        geometry.computeBoundingBox();
 
-                        // Assign unique color
                         const material = new THREE.MeshStandardMaterial({
                             color: colorPalette[this.colorIndex % colorPalette.length],
                             roughness: 0.4,
                             metalness: 0.1,
-                            side: THREE.DoubleSide
+                            side: THREE.DoubleSide,
+                            transparent: true,
+                            opacity: 1.0
                         });
                         this.colorIndex++;
 
                         const mesh = new THREE.Mesh(geometry, material);
-                        mesh.userData.originalMaterial = material; // Save original material to restore later
+                        // Store pristine base state
+                        mesh.userData = {
+                            originalColor: material.color.getHex(),
+                            originalOpacity: material.opacity
+                        };
                         
                         this.meshGroup.add(mesh);
                         this.meshes.push(mesh);
                         
-                        // Frame the camera around all currently loaded objects
                         this.frameCamera();
                     };
                     reader.readAsArrayBuffer(file);
                 });
+                
+                // Reset file input so same file can be uploaded again if deleted
+                event.target.value = '';
             }
 
             frameCamera() {
-                // Calculate bounding box for the entire group
                 const box = new THREE.Box3().setFromObject(this.meshGroup);
                 if (box.isEmpty()) return;
 
@@ -201,91 +242,151 @@
                 const size = box.getSize(new THREE.Vector3());
                 const maxDim = Math.max(size.x, size.y, size.z);
 
-                // Position camera relative to the overall bounding box center
                 this.camera.position.set(center.x, center.y - maxDim * 1.5, center.z + maxDim);
                 this.controls.target.copy(center);
                 this.controls.update();
             }
 
-            calculateAreaAndVolume(geometry) {
+            calculateMetrics(geometry) {
                 let area = 0;
                 let volume = 0;
                 const positions = geometry.attributes.position.array;
-                
-                const p1 = new THREE.Vector3();
-                const p2 = new THREE.Vector3();
-                const p3 = new THREE.Vector3();
-                const ab = new THREE.Vector3();
-                const ac = new THREE.Vector3();
+                const p1 = new THREE.Vector3(), p2 = new THREE.Vector3(), p3 = new THREE.Vector3();
+                const ab = new THREE.Vector3(), ac = new THREE.Vector3();
 
-                // STLLoader usually returns non-indexed buffer geometries
+                const loopBody = (i1, i2, i3) => {
+                    p1.fromArray(positions, i1);
+                    p2.fromArray(positions, i2);
+                    p3.fromArray(positions, i3);
+                    ab.subVectors(p2, p1);
+                    ac.subVectors(p3, p1);
+                    area += ab.cross(ac).length() / 2.0;
+                    volume += p1.dot(p2.cross(p3)) / 6.0;
+                };
+
                 if (geometry.index) {
                     const indices = geometry.index.array;
                     for (let i = 0; i < indices.length; i += 3) {
-                        p1.fromArray(positions, indices[i] * 3);
-                        p2.fromArray(positions, indices[i + 1] * 3);
-                        p3.fromArray(positions, indices[i + 2] * 3);
-                        
-                        ab.subVectors(p2, p1);
-                        ac.subVectors(p3, p1);
-                        area += ab.cross(ac).length() / 2.0;
-
-                        // Signed volume of tetrahedron
-                        volume += p1.dot(p2.cross(p3)) / 6.0;
+                        loopBody(indices[i] * 3, indices[i + 1] * 3, indices[i + 2] * 3);
                     }
                 } else {
                     for (let i = 0; i < positions.length; i += 9) {
-                        p1.fromArray(positions, i);
-                        p2.fromArray(positions, i + 3);
-                        p3.fromArray(positions, i + 6);
-                        
-                        ab.subVectors(p2, p1);
-                        ac.subVectors(p3, p1);
-                        area += ab.cross(ac).length() / 2.0;
-
-                        // Signed volume of tetrahedron
-                        volume += p1.dot(p2.cross(p3)) / 6.0;
+                        loopBody(i, i + 3, i + 6);
                     }
                 }
                 
-                return { area, volume: Math.abs(volume) };
+                // Bounding Box Dims
+                geometry.computeBoundingBox();
+                const size = new THREE.Vector3();
+                geometry.boundingBox.getSize(size);
+
+                return { 
+                    area, 
+                    volume: Math.abs(volume), 
+                    dimX: size.x, dimY: size.y, dimZ: size.z 
+                };
             }
 
-            onClick(event) {
+            onPointerUp(event) {
+                // If the user dragged the mouse (orbiting), ignore the click
+                const dist = Math.hypot(event.clientX - this.pointerDownPos.x, event.clientY - this.pointerDownPos.y);
+                if (dist > 5) return; 
+
                 const rect = this.renderer.domElement.getBoundingClientRect();
                 this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 - 1; 
+                // Note: adjusted Y logic to fix standard ThreeJS offset mapping
                 this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
                 this.raycaster.setFromCamera(this.mouse, this.camera);
                 const intersects = this.raycaster.intersectObjects(this.meshes);
 
+                const isMultiSelect = event.ctrlKey || event.metaKey;
+
                 if (intersects.length > 0) {
-                    // Reset previously selected
-                    if (this.selectedMesh) {
-                        this.selectedMesh.material = this.selectedMesh.userData.originalMaterial;
+                    const clickedMesh = intersects[0].object;
+
+                    if (!isMultiSelect) {
+                        this.clearSelection();
                     }
 
-                    // Highlight new selection
-                    this.selectedMesh = intersects[0].object;
-                    this.selectedMesh.material = this.selectedMaterial;
-
-                    // Calculate and display metrics
-                    const metrics = this.calculateAreaAndVolume(this.selectedMesh.geometry);
-                    this.areaElement.textContent = metrics.area.toFixed(2);
-                    this.volElement.textContent = metrics.volume.toFixed(2);
+                    if (this.selectedMeshes.has(clickedMesh) && isMultiSelect) {
+                        // Deselect if already selected during multiselect
+                        this.deselectMesh(clickedMesh);
+                        this.hideTooltip();
+                    } else {
+                        // Select
+                        this.selectMesh(clickedMesh);
+                        
+                        // Show Tooltip for the latest clicked item
+                        const metrics = this.calculateMetrics(clickedMesh.geometry);
+                        document.getElementById(this.config.areaId).textContent = metrics.area.toFixed(1);
+                        document.getElementById(this.config.volId).textContent = metrics.volume.toFixed(1);
+                        document.getElementById(this.config.dimId).textContent = 
+                            `${metrics.dimX.toFixed(1)} x ${metrics.dimY.toFixed(1)} x ${metrics.dimZ.toFixed(1)}`;
+                        
+                        // Position Tooltip
+                        this.tooltip.style.left = `${event.clientX - rect.left}px`;
+                        this.tooltip.style.top = `${event.clientY - rect.top}px`;
+                        this.tooltip.classList.remove('hidden');
+                        
+                        // Sync opacity slider with the newly selected mesh
+                        document.getElementById(this.config.opacityId).value = clickedMesh.material.opacity;
+                    }
                 } else {
-                    // Clicked empty space, deselect
-                    if (this.selectedMesh) {
-                        this.selectedMesh.material = this.selectedMesh.userData.originalMaterial;
-                        this.selectedMesh = null;
-                        this.areaElement.textContent = '--';
-                        this.volElement.textContent = '--';
+                    if (!isMultiSelect) {
+                        this.clearSelection();
+                        this.hideTooltip();
                     }
                 }
             }
 
+            selectMesh(mesh) {
+                this.selectedMeshes.add(mesh);
+                mesh.material.emissive.setHex(0x059669); // Green highlight
+                mesh.material.emissiveIntensity = 0.5;
+            }
+
+            deselectMesh(mesh) {
+                this.selectedMeshes.delete(mesh);
+                mesh.material.emissive.setHex(0x000000);
+            }
+
+            clearSelection() {
+                this.selectedMeshes.forEach(mesh => this.deselectMesh(mesh));
+                this.selectedMeshes.clear();
+            }
+
+            hideTooltip() {
+                this.tooltip.classList.add('hidden');
+            }
+
+            updateOpacity(event) {
+                const val = parseFloat(event.target.value);
+                this.selectedMeshes.forEach(mesh => {
+                    mesh.material.transparent = true;
+                    mesh.material.opacity = val;
+                });
+            }
+
+            deleteSelected() {
+                if(this.selectedMeshes.size === 0) return;
+
+                this.selectedMeshes.forEach(mesh => {
+                    this.meshGroup.remove(mesh);
+                    this.meshes = this.meshes.filter(m => m !== mesh);
+                    
+                    // Properly dispose of ThreeJS resources
+                    mesh.geometry.dispose();
+                    mesh.material.dispose();
+                });
+                
+                this.selectedMeshes.clear();
+                this.hideTooltip();
+            }
+
             onResize() {
-                if (this.container.clientWidth === 0) return; // Ignore if hidden
+                if (this.container.clientWidth === 0) return; 
                 this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
                 this.camera.updateProjectionMatrix();
                 this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
@@ -298,165 +399,19 @@
             }
         }
 
-        // Initialize viewers for both tabs
         window.onload = () => {
-            const viewer1 = new STLViewer('canvas-1', 'upload-1', 'area-1', 'vol-1');
-            const viewer2 = new STLViewer('canvas-2', 'upload-2', 'area-2', 'vol-2');
-        };
-    </script>
-</body>
-</html>
-                const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-                dirLight1.position.set(1, 1, 1);
-                this.scene.add(dirLight1);
-                
-                const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
-                dirLight2.position.set(-1, -1, -1);
-                this.scene.add(dirLight2);
-
-                // Raycaster for selecting meshes
-                this.raycaster = new THREE.Raycaster();
-                this.mouse = new THREE.Vector2();
-
-                // Materials
-                this.defaultMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0x9ca3af, // gray-400
-                    roughness: 0.4,
-                    metalness: 0.1,
-                    side: THREE.DoubleSide
-                });
-                
-                this.selectedMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0x10b981, // emerald-500 highlight
-                    roughness: 0.3,
-                    metalness: 0.2,
-                    side: THREE.DoubleSide,
-                    emissive: 0x059669,
-                    emissiveIntensity: 0.2
-                });
-
-                this.meshes = [];
-                this.selectedMesh = null;
-
-                // Event Listeners
-                document.getElementById(inputId).addEventListener('change', this.handleFiles.bind(this));
-                this.renderer.domElement.addEventListener('click', this.onClick.bind(this));
-                window.addEventListener('resize', this.onResize.bind(this));
-
-                this.animate();
+            new STLViewer({
+                containerId: 'canvas-1', inputId: 'upload-1', areaId: 'area-1', volId: 'vol-1', 
+                dimId: 'dim-1', tooltipId: 'tooltip-1', opacityId: 'opacity-1', deleteId: 'delete-1'
+            });
+            new STLViewer({
+                containerId: 'canvas-2', inputId: 'upload-2', areaId: 'area-2', volId: 'vol-2', 
+                dimId: 'dim-2', tooltipId: 'tooltip-2', opacityId: 'opacity-2', deleteId: 'delete-2'
+            });
+            // Initial layout calculation
+            if(window.innerWidth >= 768) {
+                window.dispatchEvent(new Event('resize'));
             }
-
-            handleFiles(event) {
-                const files = event.target.files;
-                if (!files || files.length === 0) return;
-
-                const loader = new THREE.STLLoader();
-
-                Array.from(files).forEach(file => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const geometry = loader.parse(e.target.result);
-                        geometry.computeVertexNormals();
-                        geometry.center(); // Center the geometry
-
-                        const mesh = new THREE.Mesh(geometry, this.defaultMaterial.clone());
-                        
-                        this.scene.add(mesh);
-                        this.meshes.push(mesh);
-                        
-                        // Auto adjust camera to fit the new mesh roughly
-                        geometry.computeBoundingSphere();
-                        const radius = geometry.boundingSphere.radius;
-                        this.camera.position.set(0, -radius * 2.5, radius * 1.5);
-                        this.controls.target.set(0, 0, 0);
-                        this.controls.update();
-                    };
-                    reader.readAsArrayBuffer(file);
-                });
-            }
-
-            calculateSurfaceArea(geometry) {
-                let area = 0;
-                const positions = geometry.attributes.position.array;
-                const vA = new THREE.Vector3();
-                const vB = new THREE.Vector3();
-                const vC = new THREE.Vector3();
-                const ab = new THREE.Vector3();
-                const ac = new THREE.Vector3();
-
-                // STLLoader returns non-indexed buffer geometries
-                if (geometry.index) {
-                    const indices = geometry.index.array;
-                    for (let i = 0; i < indices.length; i += 3) {
-                        vA.fromArray(positions, indices[i] * 3);
-                        vB.fromArray(positions, indices[i + 1] * 3);
-                        vC.fromArray(positions, indices[i + 2] * 3);
-                        ab.subVectors(vB, vA);
-                        ac.subVectors(vC, vA);
-                        area += ab.cross(ac).length() / 2.0;
-                    }
-                } else {
-                    for (let i = 0; i < positions.length; i += 9) {
-                        vA.fromArray(positions, i);
-                        vB.fromArray(positions, i + 3);
-                        vC.fromArray(positions, i + 6);
-                        ab.subVectors(vB, vA);
-                        ac.subVectors(vC, vA);
-                        area += ab.cross(ac).length() / 2.0;
-                    }
-                }
-                return area;
-            }
-
-            onClick(event) {
-                const rect = this.renderer.domElement.getBoundingClientRect();
-                this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-                this.raycaster.setFromCamera(this.mouse, this.camera);
-                const intersects = this.raycaster.intersectObjects(this.meshes);
-
-                if (intersects.length > 0) {
-                    // Reset previously selected
-                    if (this.selectedMesh) {
-                        this.selectedMesh.material = this.defaultMaterial;
-                    }
-
-                    // Highlight new selection
-                    this.selectedMesh = intersects[0].object;
-                    this.selectedMesh.material = this.selectedMaterial;
-
-                    // Calculate and display surface area
-                    const area = this.calculateSurfaceArea(this.selectedMesh.geometry);
-                    this.infoElement.textContent = `Selected Area: ${area.toFixed(2)} units²`;
-                } else {
-                    // Clicked empty space, deselect
-                    if (this.selectedMesh) {
-                        this.selectedMesh.material = this.defaultMaterial;
-                        this.selectedMesh = null;
-                        this.infoElement.textContent = `Selected Area: -- units²`;
-                    }
-                }
-            }
-
-            onResize() {
-                if (this.container.clientWidth === 0) return; // Ignore if hidden
-                this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
-                this.camera.updateProjectionMatrix();
-                this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
-            }
-
-            animate() {
-                requestAnimationFrame(this.animate.bind(this));
-                this.controls.update();
-                this.renderer.render(this.scene, this.camera);
-            }
-        }
-
-        // Initialize viewers for both tabs
-        window.onload = () => {
-            const viewer1 = new STLViewer('canvas-1', 'upload-1', 'info-1');
-            const viewer2 = new STLViewer('canvas-2', 'upload-2', 'info-2');
         };
     </script>
 </body>
